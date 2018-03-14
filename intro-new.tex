@@ -1,0 +1,96 @@
+\begin{abstract}
+We present the operational semantics of an abstract  machine that models computations of event-based asynchronous programs inspired to the Node.js server-side system, a convenient platform for developing Internet of Things applications. 
+The goal of the formal description of Node.js internals is twofold: 
+(1) integrating the existing documentation with a more rigorous semantics and 
+(2) validating widely used programming and transformation patterns by means of mathematical tools like transition systems. 
+Our operational semantics is parametric in the transition system of the host scripting language to mimic the infrastructure of the V8 virtual machine 
+where Javascript code is executed on top of the event-based engine provided by the C++ libuv concurrency library.
+In this work we focus our attention on priority callback queues, nested callbacks, and closures; these are
+widely used Node.js programming features which, however, may render programs difficult to understand, manipulate and validate. 
+%For the resulting framework, we propose a property specification language
+%based on register automata allowing observation of (infinite) execution traces. 
+%The abstract machine and the specification language are used in a  preliminary prototype implementation for bounded verification  based on logic programming.
+\end{abstract}
+%
+\section{Introduction}
+Asynchronous programming is getting more and more popular thanks to emergent server-side platforms like Node.js and operating systems for applications that require a constant interaction with the user interface; this programming paradigm reduces the need of controlling concurrency using 
+synchronization primitives like lock and monitors. As an example, the execution model of Node.js is based on a single threaded loop used to poll events with different priorities and to serialize the execution of pending tasks by means of callbacks. 
+Accordingly, I/O operations are performed through calls to asynchronous functions where callbacks are passed to specify how the computation continues once the corresponding I/O operations completed
+asynchronously.
+
+Taking inspiration from previous work \cite{ASOP16,CV07,GM09,GM12,GMB15,GMR09,GHR15,SV06}, in this paper we focus our attention on a formal semantics of asynchronous programs with the following features:  Priority callback queues; Nested callback definitions to model anonymous callbacks; Closures used to propagate the caller scope to the postponed callback invocation.
+The formal semantics of the resulting system is given in a parametric form. Namely, we give a presentation that is modular in the transition system  of the host programming language. We use callbacks as a bridge between the two layers as in implementation of scripting languages like Node.js running on virtual machines like Chrome V8.
+In our framework a callback is a procedure whose execution is associated with a given event. When the event is triggered by the program or by an external agent, the corresponding callback is added to a queue of pending tasks. In our model the execution of callbacks is controlled by an event-loop. After the complete execution of a callback, the event loop polls the queue and selects the next callback to execute. 
+
+This kind of behavior is typically supported via concurrent executions of I/O bound operations on a pool of worker threads.  To get closer to the Node.js execution model, we model the behavior of the event loop using different phases. More precisely, we provide continuations as a means to define pending tasks with highest priority (they are executed at the end of a callback) as for the {\tt process.nextTick}\footnote{Despite of the name, this is the current semantics of Node.js} operation in Node.js.   Furthermore, we provide postponed callbacks as a means to postpone a callback after the poll phase of standard callbacks (internal, I/O, and networking events). This mechanism is similar to the {\tt setImmediate} operation provided in Node.js. 
+As in Node.js nested continuations (a continuation that invokes a continuation) or the enqueuing of tasks  during the poll phase are potential sources of starvation for the event loop. In actual implementations non termination in the poll phase is avoided by imposing a hard limit on the number of callbacks to be executed in each tick. All pending postponed callbacks are executed when the poll phase is quiescent.
+
+{\em Examples}
+To illustrate all above mentioned concepts, let us consider some examples taken from the standard \verb+fs+ module supporting file system operations in Node.js.
+\begin{verbatim}
+var fs = require("fs");
+fs.readFile('abc.txt',function(err,data){err||console.log(data);});
+console.log("ok");
+\end{verbatim}
+Function \verb+readFile+ is asynchronous; once the read operation has completed, its continuation is defined by an anonymous callback with two parameters \verb+err+ and \verb+data+ holding, respectively, an optional error object 
+and the data read from the file (in case no error occurred, hence, \verb+err+ contains 
+\verb+null+).  If the read operation completes successfully, then the callback will print the read data on the standard output, but only after string \verb+ok+.
+Let us now consider an example that uses the \verb+events+ module in Node.js for emitting events and registering associated callbacks.
+\begin{verbatim}
+var EventEmitter = require('events');
+var Emitter = new EventEmitter();
+var msg = function msg() { console.log('ok'); }
+Emitter.on('evt1', msg);
+Emitter.emit('evt1');
+while (true);
+\end{verbatim}
+On line 4 the callback \verb+msg+ is registered and associated with events of type \verb+'evt1'+, then  on the subsequent line an event of type \verb+msg+ is emitted; since  
+method \verb+emit+ exhibits a synchronous behaviour, the associated callback is immediately executed and the message \verb+ok+ is printed before
+the program enters an infinite loop where no other callback will ever be executed. 
+We now modify the program above as follows.
+\begin{verbatim}
+eventEmitter.on('evt1', function () { setImmediate(msg); });
+eventEmitter.emit('evt1');
+while (true);
+\end{verbatim}
+Also in this case after the event has been emitted the associated callback is synchronously executed, but then
+\verb+setImmediate+ is used to postpone the execution of function \verb+msg+ to the next loop iteration, therefore the program enters immediately the infinite loop without printing \verb+ok+.  System functions like \verb+setImmediate+ are used to interleave the main thread and callbacks. While there exists a rigorous semantics for Javascript, see e.g.\cite{PSR15}, the Node.js on-line documentation \cite{NodeDoc} has not a 
+formal counterpart and contains several ambiguities as can be read in \cite{NodeDocELT}, and in several discussions on the meaning of operations like \verb+setImmediate+, 
+\verb+nextTick+, etc. see e.g. \cite{d1,d2,d3}.
+
+The combination of asynchronous programming with nested callbacks and closures
+may lead to programs with a quite intricate semantics; let us consider, for instance, the following fragment.
+\begin{verbatim}
+function test(){
+   var d = 5;
+   var foo = function(){ d = 10; }
+   process.nextTick(foo);
+   setImmediate(() => { console.log(d) })
+}
+test(); 
+\end{verbatim}
+Function \verb+test+ defines a local variable \verb+d+, which, however, is global to  
+the inner function \verb+foo+ which is passed as callback to \verb+process.nextTick+;
+technically,  \verb+foo+ is called a closure, since it depends on the global variable 
+\verb+d+, which is updated by \verb+foo+ itself. Function \verb+process.nextTick+ postpones the execution of \verb+foo+ to the next loop iteration, however \verb+foo+
+has higher priority over the callback passed to \verb+setImmediate+ on the following line.
+After the call to \verb+test+ is executed, the variable \verb+d+ local to the call is still allocated in the heap since it is referenced by the
+closure \verb+foo+; when \verb+foo+ is called, the value of \verb+d+ is updated to \verb+10+,  therefore the execution of \verb+console.log(d)+ 
+will print \verb+10+ as result.
+
+In the paper we  propose a formal model for describing computations and to clarify the semantics of this kind of programs.
+
+{\em Plan of the paper}
+In Section \ref{sec:am} we present the formal definitions of the operational semantics of a scripting language and of the abstract machine that captures the event-driven behavior of our scripts. Both components are inspired to Node.js. 
+Section \ref{sec:fr} illustrates how to apply the operational semantics to reason about asynchronous programs. In Section \ref{sec:psl} we define a specification language for reasoning about computations of the resulting combined framework (abstract machine and semantics of scripting language).
+Finally, in Section \ref{sec:csr} we address related work and future research directions.
+
+ 
+
+
+
+
+
+
+
+

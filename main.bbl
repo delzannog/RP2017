@@ -1,0 +1,77 @@
+\begin{thebibliography}{10}
+
+\bibitem{ASOP16}
+S.~Alimadadi, S.~Sequeira, A.~Mesbah, and K.~Pattabiraman.
+\newblock Understanding javascript event-based interactions with clematis.
+\newblock {\em {ACM} Trans. Softw. Eng. Methodol.}, 25(2):12:1--12:38, 2016.
+
+\bibitem{CV07}
+R.~Chadha and M.~Viswanathan.
+\newblock Decidability results for well-structured transition systems with
+  auxiliary storage.
+\newblock In {\em {CONCUR} 2007}, pages 136--150, 2007.
+
+\bibitem{EGMR15}
+M.~Emmi, P.~Ganty, R.~Majumdar, and F.~Rosa{-}Velardo.
+\newblock Analysis of asynchronous programs with event-based synchronization.
+\newblock In {\em ESOP 2015}, pages 535--559, 2015.
+
+\bibitem{GMB15}
+K.~Gallaba, A.~Mesbah, and I.~Beschastnikh.
+\newblock Don't call us, we'll call you: Characterizing callbacks in
+  javascript.
+\newblock In {\em 2015 {ACM/IEEE} International Symposium on Empirical Software
+  Engineering and Measurement, {ESEM} 2015, Beijing, China, October 22-23,
+  2015}, pages 247--256, 2015.
+
+\bibitem{GM09}
+P.~Ganty and R.~Majumdar.
+\newblock Analyzing real-time event-driven programs.
+\newblock In {\em FORMATS 2009}, pages 164--178, 2009.
+
+\bibitem{GM12}
+P.~Ganty and R.~Majumdar.
+\newblock Algorithmic verification of asynchronous programs.
+\newblock {\em {ACM} Trans. Program. Lang. Syst.}, 34(1):6:1--6:48, 2012.
+
+\bibitem{GMR09}
+P.~Ganty, R.~Majumdar, and A.~Rybalchenko.
+\newblock Verifying liveness for asynchronous programs.
+\newblock In {\em POPL 2009}, pages 102--113, 2009.
+
+\bibitem{GHR15}
+G.~Geeraerts, A.~Heu{\ss}ner, and J.-F. Raskin.
+\newblock On the verification of concurrent, asynchronous programs with waiting
+  queues.
+\newblock {\em {ACM} Trans. Embedded Comput. Syst.}, 14(3):58:1--58:26, 2015.
+
+\bibitem{PSR15}
+D.~Park, A.~Stefanescu, and G.~Rosu.
+\newblock {KJS:} a complete formal semantics of javascript.
+\newblock In {\em PLDI 2015}, pages 346--356, 2015.
+
+\bibitem{SV06}
+K.~Sen and M.~Viswanathan.
+\newblock Model checking multithreaded programs with asynchronous atomic
+  methods.
+\newblock In {\em CAV 2006}, pages 300--314, 2006.
+
+\bibitem{d2}
+\url{https://howtonode.org/understanding-process-next-tick}.
+
+\bibitem{NodeDoc}
+\url{https://nodejs.org/en/docs/}.
+
+\bibitem{NodeDocELT}
+\url{https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/}.
+
+\bibitem{d1}
+\url{http://stackoverflow.com/questions/15349733/setimmediate-vs-nexttick}.
+
+\bibitem{d3}
+\url{https://www.quora.com/}.
+
+\bibitem{prolog}
+\url{http://www.disi.unige.it/person/DelzannoG/NODE/}.
+
+\end{thebibliography}

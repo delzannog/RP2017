@@ -1,0 +1,246 @@
+\usepackage{xparse}
+%\usepackage{xfrac}
+%
+% Default Macros
+%
+
+%% Latex utilities
+\NewDocumentEnvironment{ctbl}{mmm} % Params: cols spec, caption, label
+    { %before
+        \begin{table}[htbp]
+        \begin{centering}
+        \begin{tabular}{#1}
+    }
+    { %after
+        \end{tabular}
+        \caption{#2}
+        \label{#3}
+        \end{centering}
+        \end{table}
+    }
+\NewDocumentEnvironment{cfig}{mm} % Params: caption, label
+    { %before
+        \begin{figure}[htbp]
+        \begin{centering}
+    }
+    { %after
+        \caption{#1}
+        \label{#2}
+        \end{centering}
+        \end{figure}
+    }
+
+%% Sets
+\newcommand{\nat}{\mathbb{N}}
+\newcommand{\reals}{\mathbb{R}}
+\newcommand{\preals}{\reals^{\geq 0}}
+\newcommand{\alphabet}{\Sigma}
+
+%% Set theory
+\newcommand{\set}[1]{\{ #1 \} }
+%\newcommand{\iset}[1]{ {\bar{#1}}} % set of integers
+\newcommand{\tuple}[1]{\langle #1 \rangle}
+\newcommand{\tupleVar}[1]{\tilde{#1}}
+\newcommand{\pset}[1]{2^{#1}}
+\newcommand{\card}[1]{\left| #1 \right|}
+\newcommand{\funset}[2]{{#1}\rightarrow{#2}}     % \funset{A}{B} is the set of functions f : A -> B
+\newcommand{\pfunset}[2]{{#1}\rightharpoonup{#2}} % \pfunset{A}{B} is the set of partial functions f : A -> B
+\newcommand{\dom}[1]{\mathop{\mathrm{dom}({#1})}} % domain
+\newcommand{\cod}[1]{\mathop{\mathrm{cod}({#1})}} % codomain
+\newcommand{\img}[1]{\mathop{\mathrm{img}({#1})}} % image
+
+\newcommand{\diverges}[1]{{#1}\uparrow}
+\newcommand{\converges}[1]{{#1}\downarrow}
+
+%% Relations
+\newcommand{\defne}{\stackrel{\mathrm{def}}{=}}
+\newcommand{\assign}{\mathrel{:=}}
+
+% Complexity classes
+\newcommand{\npspace}{\textsc{NPSpace}}
+\newcommand{\expspace}{\textsc{ExpSpace}}
+\newcommand{\logspace}{\textsc{LogSpace}}
+\newcommand{\nlogspace}{\textsc{NLogSpace}}
+\newcommand{\ptime}{\textsc{PTime}}
+\newcommand{\nexptime}{\textsc{NExpTime}}
+\newcommand{\np}{\textsc{NP}}
+\newcommand{\pspace}{\textsc{PSpace}}
+\newcommand{\exptime}{\textsc{ExpTime}}
+
+%% Grammars (grm- prefix)
+%\newcommand{\grmSubst}[2]{\{\sfrac{#1}{#2}\}}
+\newcommand{\grmSubst}[2]{\{{#1}/{#2}\}}
+
+%% Semantics
+\newsavebox{\sembox}
+\newlength{\semwidth}
+\newlength{\boxwidth}
+\newcommand{\Sem}[1]{%
+    \sbox{\sembox}{\ensuremath{#1}}%
+    \settowidth{\semwidth}{\usebox{\sembox}}%
+    \sbox{\sembox}{\ensuremath{\left[\usebox{\sembox}\right]}}%
+    \settowidth{\boxwidth}{\usebox{\sembox}}%
+    \addtolength{\boxwidth}{-\semwidth}%
+    \left[\hspace{-0.3\boxwidth}%
+    \usebox{\sembox}%
+    \hspace{-0.3\boxwidth}\right]%
+}
+
+%% Listings, Algorithms
+\lstdefinelanguage{math-pseudocode}{
+    morekeywords={
+        Procedure,
+        Begin,End,
+        Input,
+        Output,
+        Var,
+        choose,where,
+        until,while,
+        do, od,
+        if, then, else, elseif, fi,
+        return
+    },
+    sensitive=false,
+    morecomment=[l]{//},
+    morecomment=[s]{/*}{*/},
+    morestring=[b]",
+    mathescape=true,
+}
+\lstset{
+    basicstyle=\footnotesize,
+    language=math-pseudocode,
+    showspaces=false,          % show spaces adding particular underscores
+    showstringspaces=false,    % underline spaces within strings
+    showtabs=false,            % show tabs within strings adding particular underscores
+    frame=lines,               % adds a frame around the code
+    tabsize=4,                 % sets default tabsize to 2 spaces
+    captionpos=b,              % sets the caption-position to bottom
+    breaklines=true,           % sets automatic line breaking
+    %breakatwhitespace=false   % sets if automatic breaks should only happen at whitespace
+}
+%\renewcommand{\lstlistlistingname}{Elenco dei listati}
+%\renewcommand{\lstlistingname}{Listato}
+\lstnewenvironment{mathpseudocode}[1][]
+    {\lstset{language=math-pseudocode,float=ht,#1}}
+    {}
+\lstnewenvironment{mathinlinepseudocode}[1][]
+    {\lstset{language=math-pseudocode,frame=none,#1}}
+    {}
+
+\floatname{algorithm}{Algorithm}
+
+\newenvironment{allowbreaks}
+  {\mathactivatecomma
+   \mathcode`\,=\string"8000
+   \ignorespaces}
+  {\ignorespacesafterend}
+
+\newcommand{\mathactivatecomma}{%
+  \begingroup\lccode`~=`\,
+  \lowercase{\endgroup\edef~}{\mathchar\the\mathcode`\,\penalty0 }}
+
+
+%
+% Two-counter machines
+%
+
+\newcommand{\twocStates}{Loc}
+\newcommand{\twocState}{\ell}
+\newcommand{\twocInit}{\twocState_0}
+\newcommand{\twocRules}{Inst}
+\newcommand{\twocOperations}{Op}
+\newcommand{\twocRulesSet}{\twocStates \times \twocOperations \times \twocStates}
+\newcommand{\twocMachine}{\tuple{\twocStates, \twocRules, \twocInit}}
+\newcommand{\twocm}{\mathcal{M}}
+
+
+%
+% RBNI
+%
+
+\newcommand{\iset}[1]{\set{1,\ldots,#1}} % set of integers
+
+%% The macros for the network name are in singular number (as in \nName{}).
+%% Plural must be achieved writing "\nName{s}".
+\newcommand{\nName}[1]{Broadcast Network{#1} of Register Automata} % (capitalized) network name
+\newcommand{\nname}[1]{broadcast network{#1} of register automata} % (lowercase) network name
+\newcommand{\nn}[1]{BNRA{#1}} % (short) networks name
+\newcommand{\nnmath}[1]{\mathit{BNRA}{#1}} % (short) networks name
+
+
+\newcommand{\nregs}{{r}}   % # of local registers
+\newcommand{\regs}{[1..\nregs]}    % set {1..\nregs}
+\newcommand{\nfields}{{f}}   % # of message payload fields
+\newcommand{\fields}{[1..\nfields]} % set {1..\nfields}
+\newcommand{\eval}{M} %  L_\eval(v): local register evaluation of node v
+
+\newcommand{\Act}{A}      % communication acts
+\newcommand{\act}{\alpha} % a communication act  (\act \in \Act)
+
+\newcommand{\pdef}{\mathcal{P}}
+\newcommand{\state}{q}
+\newcommand{\states}{Q}
+\newcommand{\initState}{\state_0}
+\newcommand{\rules}{R}
+\newcommand{\protocol}{\tuple{\states,\rules,\initState}}
+\newcommand{\guardf}{g} % guard function
+\newcommand{\storef}{s} % store function
+\newcommand{\guard}[1]{{?#1}}
+\newcommand{\negguard}[1]{{?\overline{#1}}}
+\newcommand{\store}[1]{{{\downarrow}#1}}
+\newcommand{\confs}{\Gamma}
+\newcommand{\initConf}{\conf_0}
+\newcommand{\initConfs}{\confs_0}
+\newcommand{\trel}{\Rightarrow} % transition relation
+\newcommand{\btrel}{\Rightarrow_b} % transition relation with broadcast steps only
+\newcommand{\gtrel}{\rightsquigarrow} % generic transition relation
+\newcommand{\tsystem}[1]{\tuple{\confs, {#1}, \initConfs}}
+\newcommand{\internal}{\tau}
+\newcommand{\broadcast}[2]{\mathbf{b}({#1},{#2})}
+\newcommand{\receive}[2]{\mathbf{r}({#1},{#2})}
+\newcommand{\sbroadcast}[1]{\mathbf{b}({#1})}  % simple versions of \broadcast and \receive
+\newcommand{\sreceive}[1]{\mathbf{r}({#1})}
+\newcommand{\id}{{id}} % register 0
+\newcommand{\x}{{x}}   % register 1
+\newcommand{\any}{{\ast}}
+\newcommand{\Cov}[2]{\mathit{Cov}({#1},{#2})}       % decidability problem
+\newcommand{\Covb}[2]{\mathit{Cov}^b({#1},{#2})}    % restriction of \Cov to \btrel semantics, without reconfigurations
+ \newcommand{\Covfc}[2]{\mathit{Cov}^{\mathit{fc}}({#1},{#2})} % fully connected restriction of \Covb
+% Shorter notations for coverability problems
+%\newcommand{\Cov}[2]{\textit{Cov}^{#1}_{#2}}       % decidability problem
+%\newcommand{\Covb}[2]{\textit{bCov}^{#1}_{#2}}    % restriction of \Cov to \btrel semantics, without reconfigurations
+%\newcommand{\Covfc}[2]{\textit{fcCov}^{#1}_{#2}} % fully connected restriction of \Covb
+
+\newcommand{\erase}[1]{}
+
+\newcommand{\Sendset}[3]{\mathit{Send}^{#1,#2}_{#3}}
+\newcommand{\Recset}[3]{\mathit{Rec}^{#1,#2}_{#3}}
+\newcommand{\Actions}[1]{\mathit{Act}^{#1}}
+\newcommand{\Reception}[3]{\mathcal{R}(#1,#2,#3)}
+\newcommand{\Reach}[1]{\mathit{Reach}(#1)}
+\newcommand{\Reachb}[1]{\mathit{Reach}^b(#1)}
+\newcommand{\Reachfc}[1]{\mathit{Reach}^{\mathit{fc}}(#1)}
+\newcommand{\Vars}{Z}
+\newcommand{\avar}{\mathtt{z}}
+\newcommand{\aquery}{\varphi}
+
+\newcommand{\symbconf}{\theta}
+\newcommand{\symbconfbis}{\xi}
+\newcommand{\symbconfs}{\Theta}
+\newcommand{\symbconfsbis}{\Xi}
+\newcommand{\Interp}[1]{\llbracket #1 \rrbracket}
+\newcommand{\symbpost}{\mathtt{POST}}
+\newcommand{\symbpre}{\mathtt{PRE}}
+%\newcommand{\PRE}{{\sc pre}}
+\newcommand{\post}{\mathtt{post}}
+
+\newcommand{\pictScale}[1]{\scalebox{0.85}{#1}}
+
+\newcommand{\varsof}[1]{\mathit{Vars}(#1)}
+
+
+\newcommand{\nodes}{{\cal N}}
+\newcommand{\edges}{{\cal E}}
+\newcommand{\conf}{{\cal C}}
+\newcommand{\prot}{{\cal P}}
+\newcommand{\eReach}{{\exists}Reach}

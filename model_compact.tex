@@ -1,0 +1,416 @@
+\section{Abstract Machine for Asynchronous Programs}
+\label{sec:am}
+%
+In this section we define the formal semantics of the abstract machine.
+We will first try to use a compositional method with respect to the semantics of the host language.
+We will instantiate the language with a simplified scripting language.
+
+{\it Preliminaries}
+In the rest of the paper we will use the following notation.
+$A^*=\{ v_1\ldots v_n| v_i\in A,i:1,\ldots,n,\ n\geq 0\}$  denotes the set of words with elements 
+in $A$.  
+We use $w_1\cdot w_2$ to denote concatenation of two lists and $\epsilon$ to denote the empty word.   
+ $A^\otimes=\{ \{v_1\ldots v_n\}| v_i\in A,\ i:1,\ldots,n,\ n\geq 0\}$ denotes the set of multisets of elements  in $A$. 
+We use $m_1\oplus m_2$ to denote multiset union of $m_1$ and $m_2$. 
+We also use $a\oplus m$ to denote the addition of  element $a\in A$ to $m$.  
+$A^n=\{  \vec{v}=\tuple{v_1,\ldots,v_n} | v_i\in A,\ i:1,\ldots,n\ n\geq 1\}$ denotes set of tuples with elements in $A$.
+$[A\rightarrow B]$ denotes the set of maps from $A$ to $B$. 
+We use $[\vec{x}/\vec{a}]$ to denote the sequence of substitutions or maps $[x_1/a_1,\ldots,x_n/a_n]$  for $i:1,\ldots,n$, $n\geq 1$. 
+We use $t[s/x]$ to denote the term obtained from $t$ by substituting every free occurrence of $x$ with $s$.
+Furthermore, $m[v/x]$ denotes the maps $m'$ defined as $m'(x)=v$ and $m'(y)=m(y)$ for every $y\neq x$.
+%
+To manipulate callbacks we will use lambda-terms.
+A variable $x$, a value $v$ and the constant $any$ are lambda-terms.  
+For a variable $x$ and a lambda term $t$, $\lambda x.t$ is a lambda-term. If $t$ and $t'$ are lambda-terms, 
+then $t(t')$  is a lambda-term. A variable $x$ is free in $t$ if there are occurrences of $x$ in $t$ that are not in the scope of a 
+binder $\lambda x$. Lambda terms are usually considered modulo renaming of bounded variable, i.e., 
+all free occurrences under the scope of the same binder can be renamed without changing the abstract structure of the term.
+If $x$ does not occur free in $t'$, the application $(\lambda x.t)(t')$ reduces to the term $t[t'/x]$ obtained by substituting all free occurrences of $x$ in $t$ with the term $t'$.
+
+\subsection{Host Language}
+We assume here that programs are defined starting from {\em sequential} programs in a  host language $L$ with basic constructs and (recursive) procedures.  Let $F$ be a denumerable set of function names. 
+Let us consider a denumerable set $Val$ of primitive values  (pure names in our example) and a 
+denumerable set  $Var$ of variables. Expressions are either values or variables. We will also use the special term $any$ to denote a non-deterministically selected value and in some example consider natural numbers and expression with standard semantics.
+To simplify the presentation, we will represent programs as words over the alphabet of program instructions $I$ with variables  in $Var$. 
+%For the moment, we will abstract away from the instruction set $I$.
+An (anonymous) callback definition is a lambda-term $\lambda\vec{x}.s$, where $\vec{x}\in Var^k$ 
+is the set of formal parameters, and $s\in I^*$. 
+Now let $A$ be a finite set of names of asynchronous operations.
+$Events$ is a finite set of (internal and external) event labels s.t. $Events=Events_i\cup Events_e$ and $Events_i\cap Events_e=\emptyset$.
+$Var$ may contain variable and function names in $F$. 
+In order to define environments we will extend $Val$ in order to contain closures, i.e., 
+pairs in $Env\times Callback$ where $Callback$ is the set of lambda terms that denotes 
+callback (function) definitions.
+
+Furthermore, we introduce a denumerable set $Loc$ of locations that we use to denote 
+memory references so as to obtain a semantics with stateful closures.
+The association between locations and values will be defined via a global heap memory $H$ 
+that will be part of the system configuration. 
+The heap memory $H$ is a list of maps $[l_1/v_1,\ldots,l_k/v_k]$ s.t. $l_i$ is a location and 
+$v_i$ is a value (primitive value or closure). 
+We will use $Heap$ to denote the set of possible heaps.
+
+The set of environments $Env$ consists of list of substitutions $[x_1/l_1,\ldots,x_n/l_n]$  s.t. $x_i\in Var$ and  $l_i\in Val$ for $i:1,\ldots,n$.
+Given $\ell=[x_1/l_1,\ldots,x_n/l_n]$, $\ell(x)=l$ if there exists $i$ s.t. $x_i=x$, $\ell_i=l$, and $x_j\neq x$ for $j>i$.
+In other words to evaluate $x$ in $\ell$ we search the first occurrence of $x$  from right to left and return its value.
+Given an environment $\ell$ and the heap memory $H$, we use $\ell_H$ to denote the function 
+defined as $\ell_H(v)=H(\ell(v))$ for $v\in Var$.
+
+In this way we can use an environment as a stack and represent therein nested scopes of variables.
+$Listener$ is the finite set maps $Events\rightarrow (Env\times F^*)^*$. 
+A listener maps an events to a sequence of pairs each one consisting of an environment (the current environment of the caller) and a list of callback names (defined in the corresponding environment).
+$Call_F$ is the set of callback calls $\{ f(\vec{v})| f\in F,\vec{v}\in Val^k,k\geq 0\}$. 
+$Call_A$ is the set of asynchronous calls $\{ call(a,cb)| a\in A,cb\in F\}$ where $A$ is a set of labels.
+Finally, a frame (a record of the call stack of the main program) is a pair $\tuple{\ell,u}$ s.t. 
+$\ell\in Env$ and $u\in I^*$.
+
+The host language provides a denumerable set of global variables $Var_G$ and an  operation $store(x,e)$ to write the evaluation of  expression $e$ in the global variable $x$. We assume here that store operations on undefined variables add the variable to the environment (i.e. global environment can only be extended).
+Furthermore, we provide a special operation $obs$ to label specific control points with the current value of an expression. The label is made observable by labeling the transition relation with it. 
+The proposed instance of  the host language allows us to design an assertional language to specify properties of computations in the abstract machine.
+%
+
+A program expression has either the structure $let \ x=e\ in\ B$ where $x$ is a local variables
+and $e$ an expression denoting a primitive value (not a function),
+or $let \ f_1=\lambda \vec{y}_1.P_1, \ldots, f_k=\lambda \vec{y}_k.P_k\ in\ B$
+ where $P_1,\ldots,P_k$ are program expressions (they may contain $let$ declarations).
+In both cases $B$ is a finite sequence of instructions built on top of the above mentioned instruction set.
+%
+We consider then the following type of instructions.
+\begin{itemize}
+\item
+$obs(e)$ is used to observe a certain event (a value)
+\item
+$store(x,e)$ is used to store a value (the evaluation of $e$) in the global or local variable $x$.
+We use the expression $any$ to denote a value non deterministically selected from the set of values.
+\item
+$f(\vec{e})$ is used to synchronously invoke a callback $f$ with the vector of parameters $\vec{e}$.
+Actual parameters are global or local variables. 
+\end{itemize}
+
+We assume that all necessary procedure definitions are declared in the program (we will introduce an example language  with $let$ declarations) so that their names are always defined in the current local environment.
+We now define the set of configurations $C_L$ of the host language.
+$C_L$ consists of tuples of the form  $\tuple{G,H,S}$, where $G\in Env$, $H$ is the global heap, and $S\in Frame^*$. 
+In other words $S$ has the form $\tuple{\ell_1,S_1}\ldots\tuple{\ell_n,S_n}$ for $i:1,\ldots,n$.
+A word of frames will be interpreted as the stack of procedure calls.
+In a pair $\tuple{\ell,w}$  $\ell$ is the local environment and $w$ is the corresponding program to be executed. 
+\begin{figure}[h]
+{\footnotesize 
+$$
+\begin{array}{c}
+\infer[s1v]
+{\tuple{G,H,\tuple{\ell,let\ x=e\ in\ B}\cdot S}\rightarrow_L
+ \tuple{G,H',\tuple{\ell',B}\cdot S}}
+{
+\ell'=\ell[x/l],\ l_H(e)=v,\ H'=H[l/v],\ l\not\in dom(H)
+}
+\medskip\\
+\infer[s1f]
+{\tuple{G,H,\tuple{\ell,let\ f_1=\lambda\vec{x}_1.P_1,\ldots,f_k=\lambda\vec{x}_k.P_k\ in\ B}\cdot S}\rightarrow_L
+ \tuple{G,H',\tuple{\ell',B}\cdot S}}
+{
+\begin{array}{c}
+\ell'=\ell[f_1/l_1,\ldots,f_k/l_k],\
+ H'=H[l_1/\tuple{\ell,\lambda\vec{x}_1.P_1},\ldots,l_k/\tuple{\ell,\lambda\vec{x}_k.P_k}]\\
+ l_i\not\in dom(H),\ l_i\neq l_j,\  for\ i,j:1,\ldots,k,\ i\neq j
+\end{array}
+}
+\medskip\\
+\infer[s2]{
+\tuple{G,H,\tuple{\ell,obs(e)\cdot B}\cdot S}\rightarrow_L^{\widehat{\ell_H}(e)}
+\tuple{G,H,\tuple{\ell,B}\cdot S}}{}
+\medskip\\
+\infer[s3g]{
+\tuple{G,H,\tuple{\ell,store(x,e)\cdot B}\cdot S}\rightarrow_L
+\tuple{G[x/w],H,\tuple{\ell,B}\cdot S}}
+ {x\not\in dom(\ell) & G\cdot \ell_H(e)=w\neq\lambda\vec{y}.e}
+\medskip\\
+\infer[s3l]{
+\tuple{G,H,\tuple{\ell,store(x,e)\cdot B}\cdot S}\rightarrow_L
+\tuple{G,H[l/w],\tuple{\ell,B}\cdot S}}
+ {x\in dom(\ell) & \ell_H(e)=w\neq\lambda\vec{y}.e & \ell(x)=l}
+\\ 
+\\
+\infer[s4]{
+\tuple{G,H,\tuple{\ell,f(\vec{v})\cdot B}\cdot S}\rightarrow_L
+\tuple{G,H',\tuple{\ell'',u}\cdot \tuple{\ell,B}\cdot S}}
+{
+\begin{array}{c}
+\ell_H(f)=\tuple{\ell',\lambda\vec{y}.u},\ G\cdot (\ell_H)\cdot(\ell'_H)(\vec{v})=\vec{v'},\ 
+H'=H[\vec{l}/\vec{v'}],\ \ell''=\ell[\vec{y}/\vec{l}],\\ 
+for\ \vec{l}=l_1,\ldots,l_k,\ 
+l_i\not\in dom(H),\ l_i\neq l_j,\  for\ i,j:1,\ldots,k,\ i\neq j
+\end{array}
+}
+\medskip\\
+\infer[s5]{
+\tuple{G,H,\tuple{\ell,\epsilon}\cdot S}\rightarrow_L
+\tuple{G,H,S}}{}
+\end{array}
+$$
+}
+\caption{Operational semantics of the host language}
+\label{fig:opseml}
+\end{figure}
+%
+\subsection{Operational Semantics}
+We assume that the operational semantics of programs in $L$ is defined via a transition system  
+$\tuple{C_L,\rightarrow_L}$,  where $\rightarrow_L\subseteq (C_L\times C_L)$ defines small step operational semantics of generic statements of programs in $L$.
+We will use $\lambda$-terms to represent callbacks in the local environment during program evaluation.  In the semantics of our language, lambda terms are used as values for function names. Indeed, a local environment $\ell$ is a map that associates function names  to locations, and $H$ associates locations to lambda expressions.
+By using location for both variables and function names we obtain a more general semantics open to extensions in which variables can contain functions (as in Javascript) that can be dynamically updates. The transition system is obtained as the minimal set satisfying the rule schemes defined  in Fig. \ref{fig:opseml}.
+Rule $s1v$ models the semantics of the $let$ expression for variables with primitive values 
+(we assume here that $e$ is not a function nor a function call).
+Its effect is to update the local environment with a new substitution between the variable name
+and a fresh location, and the heap with an association between the new location and the value of the expression.
+Rule $s1f$ models the semantics of the $let$ expression.
+Its effect is to update the local environment with new substitutions between function names and locations, and the heap with associations between locations of pairs that represent the current environment and the lambda term that represents the body of the callback definition.
+Rule $s2$ models the semantics of instructions.
+This rule captures the effect of observing an event by exporting the label to the meta-level
+(i.e. as a label of the transition step).
+We assume here that if an expression $a$ is not defined in $\ell_H$ (and it is not a function name)
+than it is simply viewed as a constant, i.e., $\widehat{\ell_H}(e)=e$ if $\ell_H(e)$ is not defined.
+Rule $s3$ captures the effect of a $store(x,e)$ operation
+We assume that $store$ is defined only if $x$ is a global variable and $e$ evaluates to a value that is not a function. Furthermore, $\ell(any)\in Val$ (non deterministically selected). 
+Rule $s4$ models synchronous calls.
+In this rule we first evaluate $f$ in the current local environment to retrieve its definition.
+We then evaluate the parameters in the concatenation of global and local environments.
+We push a new frame onto the call stack containing a copy of the current environment
+(so as to transport the scope information from the current frame to the new one) concatenated with the evaluation of the parameters and  
+the body of the function definition.
+Finally, rule $s5$ models the return from a call by eliminating the frame on top of the stack when its  body is empty.
+In our host language, we can define a stronger rule by observing that  local environments are copied from old to new frames and that local environments are not used as state  by other frames. 
+In other words, we can reason modulo the following equivalence between stack expressions:
+$(S_1\cdot \tuple{\ell,\epsilon}\cdot S_2)\equiv (S_1\cdot S_2)$.
+
+\subsection{Abstract Machine}
+%
+In this section we define the formal semantics of an abstract machine that can handle 
+programs as those specified in the previous section extended with built-in instructions for associating event-handlers (callbacks) to event names, and to control the priority queues 
+via special enqueues built-in primitives.
+More precisely, programs are defined by enriching the language $L$ with the following control instructions:
+\begin{itemize}
+\item
+$reg(e,u)$: registers callbacks in the word (list) $w\in F^*$  for event $e$, we use a list 
+since we the callbacks must be processed in order.
+\item 
+$unreg(e,P)$: unregisters all callbacks in the set $P\in {\cal P}(F)$ for event $e$, 
+\item 
+$call(op,cb)$: invokes an asynchronous operation $op$ and registers the callback $cb$ to be executed upon its termination.
+We assume here that the operation generates a vector of input values that are passed, upon termination of $op$,  to the callback $cb$.
+\item 
+$nexttick(f,\vec{v})$: enqueues the call to $f$ with parameters $\vec{v}$ in the nextTick queue.
+\item
+$setimmediate(f,\vec{v})$: postpones the call to function $f$ with parameters $\vec{v}$ to the next tick of the event loop.
+\item 
+$trigger(e,\vec{v})$: generates event $e\in Events_i$ (pushing callbacks in the poll queue) with actual parameters $\vec{v}$.
+\end{itemize} 
+%
+
+We now define the operational semantics of programs.
+We first define the set of configurations $C_L$ of the host language.
+$C_L$ consists of tuples of the form  $\tuple{G,H,S}$ where $G\in Env$, $H$ is the heap memory, and $S\in Frame^*$. 
+In other words $S$ has the form $\tuple{\ell_1,S_1}\ldots\tuple{\ell_n,S_n}$ for $i:1,\ldots,n$.
+A word of frames will be interpreted as the stack of procedure calls.
+In a pair $\tuple{\ell,w}$  $\ell$ is the local environment and $w$ is the corresponding program to be executed. 
+We assume that the operational semantics of programs in $L$ are defined via a transition system  
+$\tuple{C_L,\rightarrow_L}$,  where $\rightarrow_L\subseteq (C_L\times C_L)$ defines small step operational semantics of generic statements of programs in $L$.
+
+A configuration is a tuple $\tuple{G,H,E,S,C,Q,P,R}$,  where  $G\in Env$, $H\in Heap$, $E\in Listener$, 
+$S\in Frame^*$,  $C,Q,P\in (Env\times Call_F)^*$,  and $R\in (Env\times Call_A)^\otimes$.
+$C,Q,P$ and $R$ are sequences of pairs consisting of a local environment and of a function invocation.
+$C$ is the (nexttick) queue of pending callback invocations generated by $nexttick$,
+$Q$ is the (poll) queue of pending callback invocations generated by $trigger$ and by external events.
+$P$ is the (setimmediate) queue of pending callback invocations generated by $setimmediate$.
+Local environments are used to evaluate variables defined in the body of a callback at the moment of registration, synchronous or asynchronous invocation. 
+
+We associate to every $L$-program $\Pi$ enriched with control instructions a transition system  $T_\Pi=\tuple{Conf,\rightarrow}$ in which $Conf$ is the set of  configurations, and  $\rightarrow$ is a relation in $Conf\times Conf$.
+Furthermore, we will use labeled versions of the transition relations, namely, $\rightarrow^\alpha$ and  $\rightarrow_L^\alpha$, in order to keep track of observations generated by the evaluation of programs instructions. Labels are either values, variable or function names.
+For simplicity, we will use $\rightarrow$ [resp. $\rightarrow_L$] to denote 
+$\rightarrow^\epsilon$ [resp. $\rightarrow_L^\epsilon$].
+
+The initial configuration  is the tuple 
+$$\gamma_0=
+\tuple{\emptyset,\emptyset,\emptyset,\tuple{\epsilon,P},\epsilon,\epsilon,\epsilon,\emptyset}
+$$
+where we use $\emptyset$ to denote an empty map or multiset, 
+$\epsilon$ to denote empty queues and local environments (both treated as words).
+In the rest of the paper we will use $\bot$ to denote the empty call stack (it helps in reading configurations). In order to evaluate expressions we need to combine $G$ and a local environment $\ell$.
+We use $G\cdot \ell$ to indicate the concatenations of the substitutions contained in $G$ and $\ell$.
+As for environments, to evaluate $x$ we inspect the list of substitutions in $G\cdot\ell$ from right to left (a local variable can hide a global one with the same name).
+In the rest of the section  we assume that procedure names occurring in a rule are always defined in the corresponding local environment.
+\begin{figure}[t]
+{
+\footnotesize
+$$
+\begin{array}{c}
+\infer[r1]
+{\tuple{G,H,E,S,C,Q,P,R}\rightarrow^{\alpha}\tuple{G',H',E,S',C,Q,P,R}}
+{\tuple{G,H,S}\rightarrow_L^\alpha\tuple{G',H',S'}}
+\medskip\\
+\infer[r2]
+{\tuple{G,H,E,\tuple{\ell,reg(evt,u)\cdot w}\cdot S,C,Q,P,R}\rightarrow
+ \tuple{G,H,E',\tuple{\ell,w}\cdot S,C,Q,P,R}}
+{E'=E[evt/(E(evt)\cdot \tuple{\ell,u})]}
+\medskip\\
+\infer[r3]{
+\tuple{G,H,E,\tuple{\ell,unreg(evt,u)\cdot w}\cdot S,C,Q,P,R}\rightarrow
+\tuple{G,H,E',\tuple{\ell,w}\cdot S,C,Q,P,R}}
+{E'=E[evt/(E(evt)\ominus u)]}
+\medskip\\
+\infer[r4]{
+\tuple{G,H,E,\tuple{\ell,trigger(evt,\vec{v})\cdot w}\cdot S,C,Q,P,R}\rightarrow
+\tuple{G,H,E,\tuple{\ell,w}\cdot S,C,Q\cdot r,P,R}}
+{\begin{array}{c}
+evt\in Events_i 
+\ \ 
+E(evt)=\tuple{\ell_1,u_1}\ldots\tuple{\ell_m,u_m}
+\ \
+u_i=p_1^i\cdot\ldots\cdot p_{k_i}^i\ for\ i:1,\ldots,m
+\\
+r=\tuple{\ell_1,p_1^1(\vec{v})}\cdot \ldots\cdot \tuple{\ell_1,p_{k_1}^1(\vec{v})} 
+\ldots
+\tuple{\ell_m,p_1^m(\vec{v})}\cdot \ldots\cdot \tuple{\ell_m,p_{k_m}^m(\vec{v})} 
+\ \ 
+\vec{v}\in Val^k
+\end{array}
+}
+\medskip\\
+\infer[r5]{
+\tuple{G,H,E,\tuple{\ell,call(a,cb)\cdot w}\cdot S,C,Q,P,R}\rightarrow
+\tuple{G,H,E,\tuple{\ell,w}\cdot S,C,Q,P,R'}}
+{R'=R\oplus\{\tuple{\ell,call(a,cb)}\}}
+\medskip\\
+\infer[r6]{
+\tuple{G,H,E,S,C,Q,P,R}\rightarrow
+\tuple{G,H,E,S,C,Q\cdot u,P,R'}}
+{u=\tuple{\ell,cb(\vec{v})} & \vec{v}\in Val^k & R'=R\setminus\{\tuple{\ell,call(a,cb)}\}}
+\medskip\\
+\infer[r7]{
+\tuple{G,H,E,S,C,Q,P,R}\rightarrow 
+\tuple{G,H,E,S,C,Q\cdot r,P,R}}
+{\begin{array}{c}
+evt\in Events_e
+\ \ 
+E(evt)=\tuple{\ell_1,u_1}\ldots\tuple{\ell_m,u_m}
+\ \
+u_i=p_1^i\cdot\ldots\cdot p_{k_i}^i\ for\ i:1,\ldots,m
+\\
+r=\tuple{\ell_1,p_1^1(\vec{v})}\cdot \ldots\cdot \tuple{\ell_1,p_{k_1}^1(\vec{v})} 
+\ldots
+\tuple{\ell_m,p_1^m(\vec{v})}\cdot \ldots\cdot \tuple{\ell_m,p_{k_m}^m(\vec{v})} 
+\ \ 
+\vec{v}\in Val^k
+\end{array}
+}
+%{
+%evt\in Events_e & 
+%E(evt)=p_1\ldots p_n & G\cdot\ell(\vec{v})=\vec{v'} & 
+%r=\tuple{\ell,p_1(\vec{v'})}\cdot \ldots\cdot \tuple{\ell,p_k(\vec{v'})}
+%}
+\medskip\\
+\infer [r8]
+{\tuple{G,H,E,\tuple{\ell,nexttick(f,\vec{v})\cdot w}\cdot S,C,Q,P,R}\rightarrow
+ \tuple{G,H,E,\tuple{\ell,w}\cdot S,C\cdot \tuple{\ell,f(\vec{v'})},Q,P,R}}
+{G\cdot\ell_H(\vec{v})=\vec{v'} &}
+\medskip\\
+\infer[r9]{
+\tuple{G,H,E,\tuple{\ell,setimmediate(f,\vec{v})\cdot w}\cdot S,C,Q,P,R}\rightarrow
+\tuple{G,H,E,\tuple{\ell,w}\cdot S,C,Q,P\cdot \tuple{\ell,f(\vec{v'})},R}}
+			       {G\cdot\ell_H(\vec{v})=\vec{v'} &}
+\medskip\\
+\infer[r10]{
+\tuple{G,H,E,\bot,\tuple{\ell,p(\vec{v})}\cdot C,Q,P,R}\rightarrow
+\tuple{G,H',E,\tuple{\ell',s},C,Q,P,R}}
+{
+\begin{array}{c}
+\ell_H(p)=\tuple{\ell',\lambda\vec{y}.s},\ G\cdot (\ell_H)\cdot(\ell'_H)(\vec{v})=\vec{v'},\ 
+H'=H[\vec{l}/\vec{v'}],\ \ell''=\ell[\vec{y}/\vec{l}],\\ 
+for\ \vec{l}=l_1,\ldots,l_k,\ 
+l_i\not\in dom(H),\ l_i\neq l_j,\  for\ i,j:1,\ldots,k,\ i\neq j
+\end{array}
+}
+%   {\ell(p)=\lambda\vec{x}.s,\ \ell'=\ell[\vec{x}/\vec{v}],\ \vec{v}\in Val^k}	
+\medskip\\
+\infer[r11]{
+\tuple{G,H,E,\bot,\epsilon,p(\vec{v})\cdot Q,P,R}\rightarrow
+\tuple{G,H',E,\tuple{\ell',s},\epsilon,Q,P,R}}
+{
+\begin{array}{c}
+\ell_H(f)=\tuple{\ell',\lambda\vec{y}.s},\ G\cdot (\ell_H)\cdot(\ell'_H)(\vec{v})=\vec{v'},\ 
+H'=H[\vec{l}/\vec{v'}],\ \ell''=\ell[\vec{y}/\vec{l}],\\ 
+for\ \vec{l}=l_1,\ldots,l_k,\ 
+l_i\not\in dom(H),\ l_i\neq l_j,\  for\ i,j:1,\ldots,k,\ i\neq j
+\end{array}
+}
+%{\ell(p)=\lambda\vec{x}.s,\ \ell'=\ell[\vec{x}/\vec{v}],\ \vec{v}\in Val^k}
+\medskip\\
+\infer[r12]{
+\tuple{G,H,E,\bot,\epsilon,\epsilon,P,R}\rightarrow
+\tuple{G,H,E,\bot,\epsilon,P,\epsilon,R}}
+      {}
+\end{array}
+$$
+}
+\caption{Operational semantics of the abstract machine}
+\label{opsem}
+\end{figure}
+%
+The transition system is obtained as the minimal set satisfying the rule schemes defined 
+in Fig. \ref{opsem}.
+Rule $r1$ is used to embed the semantics of $L$ into the semantics of the abstract machine.
+Rule $r2$ associates the current environment and the ordered list of callbacks $u$ to the event $evt$. 
+Everytime $evt$ is triggered, the callbacks in $u$ will added to the queue of pending tasks together with the environment in the same order as they occur in $u$.
+Rule $r3$ unregisters all callbacks in $P$ for event $evt$.
+We use $\ominus$ to denote this operation.
+Rule $r4$ assigns a semantics to the $trigger$ instruction. It corresponds to the combination of emit and \verb+setImmediate+ discussed in the introduction.
+The rationale behind this definition is that when $evt$ is triggered, all registered callbacks are added to the pending queue. 
+The current local environment is stored together with the callback invocation.
+The formal parameters are instantiated with the actual parameters defined in the $trigger$ statement.
+The environment can be used to evaluate variables occurring in the body of the callback definition.
+The actual parameters $\vec{v}$ are evaluated using the composition of the global and local environment.
+
+We now consider asynchronous calls of built-in libraries to be executed in a thread pool.
+Rule $r5$ adds the call to a pool of pending tasks submitted to the pool thread.
+We do not model the internal behavior of asynchronous calls. 
+The only information maintained in $R$ is a pointer to the callback $cb$ that has to be executed upon 
+termination of the thread execution.
+The pool $R$ is used to keep track of the operations that have been submitted to the thread pool.
+Since the termination order of these calls is not known a priori and, at least in principle, the calls might be processed in parallel by different threads, we abstract from the order and use a multiset for modeling the pool.
+According to this idea, rule $r6$ models the termination of a thread and the invocation of 
+the corresponding callback $cb$. We assume  here that $cb$ expects $k$ parameters.
+The callback in invoked with $k$ non-deterministically generated values 
+(they model the result returned by the asynchronous call).
+We remark that the constant $a$ is used as a label and has no specific semantics (it helps in the examples).
+%
+
+In order to handle the response to external events (e.g. connections, etc) we use the non-deterministic rule $r7$.
+We assume here that the data generated by the operation are non-deterministically selected from 
+the set of values and associated with the formal parameters of the callback functions $p_1,\ldots,p_k$.  
+Every callback invocation is stored together with the corresponding local environment.
+
+Rule $r8$ deals with nextTick callbacks.
+Invocation of a such an operation is defined as follows.
+The callback invocation is stored together with the current local environment.
+Rule $r9$ is used to deal with setImmediate invocations.
+The  callback invocation is stored together with the current local environment.
+In $r8$ and $r9$ the actual parameters are evaluated using the composition of the global and local environment.
+%
+
+Rule $r10$ and $r11$ define the selection of pending tasks.
+The selection phase is defined according with the following priority order: nextTick, 
+poll, setImmediate. nextTick callbacks are selected every time the call stack becomes empty 
+(at the end of a callback execution).
+Poll callbacks are selected only when the call stack is empty and there are no nextTick callback to execute. 
+The local environment is initialized with the stored environment $\ell$ and the map that associates parameters to actual values.  
+SetImmediate callbacks are selected only when both the call stack and the nextTick queue are empty. 
+We assume that the definition of $p$ is available in the local environment stored with the callback
+(the global environment does not contain function definitions).
+The local environment is initialized with the stored environment $\ell$ and the map that associates
+parameters to actual values. 
+Finally, in rule r12 all (pending) setImmediate callbacks are executed before passing to the next tick of 
+the event loop.
+%
+
+Given a program $P$ with initial state $\gamma_0$ and transition relation $\rightarrow$,  we use $\rightarrow^*$ to denote the reflexive and transitive closure of $\rightarrow$. The sequence of labels generated during the unfolding of the transition relation $\rightarrow$ 
+gives rise to possibly infinite words in $Labels^*$ that we will use to observe the behavior of a given instance of the host language when executed in the abstract machine. Starting from an initial state $\gamma_0$, a program can give rise to several different computations obtained by  considering every possible reordering of asynchronous operations. This feature in combination with the callback mechanism, that can delay the execution of a function, makes our programs a non trivial computational model even in the simple case of Boolean programs, i.e., programs in which all data are abstracted into a finite set of possible values. 
+
+We will restrict our attention to infinite executions under fairness conditions to ensure the termination of asynchronous callbacks after finitely many steps. Indeed, asynchronous callbacks are typically built-in operations that terminate with an error if something goes wrong in their execution. Similarly, we might restrict our attention to infinite executions in which  external events for which there are registered callbacks occur infinitely often.

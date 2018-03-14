@@ -1,0 +1,179 @@
+\section{Formal Reasoning}
+\label{sec:fr}
+%
+In this section we will consider some example of formal reasoning via the transition systems introduced in the previous sections.
+For the sake of simplicity, in all example but the last one on closures with state, we will
+omit the heap component and consider only environments mapping variables to values.
+We will use the complete semantics when considering side effects on closures.
+
+Let us first consider the program defined as follows.
+$$
+\begin{array}{l}
+P=let \ f=(let\ (cb=\lambda x.\ obs(x))\ in\ call(read,cb)\cdot f)\ in\ f()
+\end{array}
+$$
+A possible computation, in which we apply the reduction 
+$\tuple{\ell,f}\cdot\tuple{\ell,\epsilon}\equiv \tuple{\ell,f}$, is given below.
+$$
+\begin{array}{l}
+\rho_1=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\epsilon,P},\epsilon,\epsilon,\epsilon,\emptyset}
+\rightarrow\\
+\rho_2=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,f},\epsilon,\epsilon,\epsilon,\emptyset}
+\ s.t.\ \ell\ defines\ f
+\rightarrow\\
+\rho_3=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,f},\epsilon,\epsilon,\epsilon,\emptyset}
+\rightarrow\\
+\rho_4=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,let\ cb=\lambda x.obs(x)\ in\ call(read,cb)\cdot f},\epsilon,\epsilon,\epsilon,\emptyset}
+\rightarrow\\
+\rho_5=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell',call(read,cb)\cdot f},
+       \epsilon,\epsilon,\epsilon,
+			 \emptyset}\ s.t.\ \ell'\ defines\ cb\ \rightarrow\\
+\rho_6=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell',f},
+  \epsilon,\epsilon,\epsilon,
+	\{\tuple{\ell',call(read,cb)}\}}
+\end{array}
+$$
+In the configuration $\rho_6$ we can either assume that the asynchronous call is already terminated or
+continue with the execution of the current callback.
+In the former case we have the following continuation.
+$$
+\begin{array}{l}
+\rho_6 \rightarrow\rho_7=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell',f},
+              \epsilon,\epsilon,
+							\tuple{\ell',cb(d)},\emptyset}\ for\ d\in Val
+\end{array}
+$$
+In the latter case we will add a new frame to the call stack with the body of $f$.
+We now observe that, in both cases, the callback stack will never get empty again.
+Therefore, the callback $cb$, defined in the local environment $\ell'$, will never be selected for execution even under additional fairness conditions. As a consequence, the transition system will never generate observations during any of its infinitely many possible computations (the termination of the asynchronous call can happen anytime).
+This formally explains why in systems like Node.js everytime the main application has a recursive structure  (e.g. to model an infinite loop) in order to make it responsive to external events, it is necessary to  encapsulate the recursive call into invocations of primitives like {\tt setImmediate} and
+{\tt nextTick}. To illustrate this idea, let us consider the following modified program.
+$$
+\begin{array}{l}
+P_1=let \ f=(let\ cb=\lambda x.\ obs(x)\ in\ call(read,cb)\cdot setimmediate(f))\ in\ f()
+\end{array}
+$$
+We obtain the following behavior.
+$$
+\begin{array}{l}
+\rho_1=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\epsilon,P_1},\epsilon,\epsilon,\epsilon,\emptyset}
+\rightarrow\\
+\rho_2=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,f},\epsilon,\epsilon,\epsilon,\emptyset} s.t.\ \ell\ defines\ f
+\rightarrow^*\\
+\rho_3=
+\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell',setimmediate(f)},\epsilon,\epsilon,\epsilon,\{\tuple{\ell',call(read,cb)}\}}
+\ s.t.\ \ell'\ def.\ f,cb
+\end{array}
+$$
+Again we have a bifurcation here. For instance, let us assume that $read$ terminates.
+We obtain then the following computation.
+$$
+\begin{array}{l}
+\rho_3
+\rightarrow
+\rho_4=
+\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,setimmediate(f)},\epsilon,cb(d),\epsilon,\emptyset}
+\rightarrow^*\\
+\rho_5=
+\tuple{\emptyset,\emptyset,\emptyset,\bot,\epsilon,\tuple{\ell',cb(d)},\tuple{\ell',f},\emptyset}
+\rightarrow\\
+\rho_6=
+\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell',cb(d)},\epsilon,\tuple{\ell',f},\emptyset}
+\rightarrow\\
+\rho_7=
+\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell'[x/d],obs(x)},\epsilon,\tuple{\ell',f},\emptyset}
+\rightarrow^{d}\\
+\rho_8=
+\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell'[x/d],\epsilon},\epsilon,\tuple{\ell',f},\emptyset}
+\ldots
+\end{array}
+$$
+It is interesting to observe here that callbacks are evaluated in the environment of the caller. For instance, in this example function $cb$ and $f$ are both defined in $\ell'$, the local environment 
+used to initialize the frame associated to the invocation $cb(d)$. In other words, under fairness conditions on the termination of asynchronous callbacks, the execution of program $P_1$ generates infinite traces labeled with an arbitrary sequence of values that correspond to successful termination of read operations.
+
+To understand the difference between \verb+nextTick+ and \verb+setImmediate+, let us first consider the nextTick operation.
+$$
+\begin{array}{l}
+NT=let\ \ f_1=(\lambda d_1.obs(a)),\ f_2=(\lambda d_2.obs(b)),\ f_3=(\lambda z. obs(c))\\
+\ \ \ \ \ \ in \ nexttick(f_1)\cdot call(b,f_2)\cdot call(c,f_3) 
+\end{array}
+$$
+We then apply our operational semantics to study its behavior.
+$$
+\begin{array}{l}
+\rho_1=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\epsilon,W},\epsilon,\epsilon,\epsilon,\emptyset}
+\rightarrow\\
+\rho_2=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,nexttick(f_1)\cdot call(b,f_2)\cdot call(c,f_3)},\epsilon,\epsilon,\epsilon,\emptyset}
+\\ s.t.\ \ell\ cont.\ all\ def.
+\rightarrow\\
+\rho_3=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,call(b,f_2)\cdot call(c,f_3)},\tuple{\ell,f_1},\epsilon,\epsilon,\emptyset}
+\rightarrow\\
+\rho_4=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,call(b,f_2)},\tuple{\ell,f},\epsilon,\epsilon,\{call(c,f_3)}
+\end{array}
+$$
+We now have possible bifurcations due delays in the termination of $c$.
+We could for instance reach one of the following two configurations:
+$$
+\begin{array}{l}
+\rho_5=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,call(c,f_3)},\tuple{\ell,f_1},call(b,f_2),\epsilon,\emptyset}
+\\
+\rho_5'=\tuple{\emptyset,\emptyset,\emptyset,\bot,\tuple{\ell,f_1},\epsilon,\epsilon,\{call(b,f_2),call(c,f_3)\}}
+\end{array}
+$$
+From the latter we can obtain 
+$$
+\begin{array}{l}
+\rho_6'=\tuple{\emptyset,\emptyset,\emptyset,\bot,\tuple{\ell,f_1}, call(b,f_2)\cdot call(c,f_3),\epsilon,\emptyset}
+\\
+\rho_6''=\tuple{\emptyset,\emptyset,\emptyset,\bot,\tuple{\ell,f_1},call(b,f_3)\cdot call(c,f_2),\epsilon,\emptyset}
+\end{array}
+$$
+In all cases $f_1$ will be executed before $f_2$ and $f_3$ because of the priority order used to inspect the queue of pending 
+calls when the call stack becomes empty, i.e., neither $f_2$ nor $f_3$ can overtake $f_1$.
+
+Now let us consider the same program with $setimmediate$ replacing $nexttick$.
+$$
+\begin{array}{l}
+NT=let\ \ f_1=(\lambda d_1.obs(a)),\ f_2=(\lambda d_2.obs(b)),\ f_3=(\lambda z. obs(c))\\
+\ \ \ \ \ \ in \ setimmediate(f_1)\cdot call(b,f_2)\cdot call(c,f_3) 
+\end{array}
+$$
+We then apply our operational semantics to study its behavior.
+$$
+\begin{array}{l}
+\rho_1=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\epsilon,W},\epsilon,\epsilon,\epsilon,\emptyset}
+\rightarrow\\
+\rho_2=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,setimmediate(f_1)\cdot call(b,f_2)\cdot call(c,f_3)},\epsilon,\epsilon,\epsilon,\emptyset}
+\\ s.t.\ \ell\ cont.\ all\ def.
+\rightarrow\\
+\rho_3=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,call(b,f_2)\cdot call(c,f_3)},\epsilon,\epsilon,
+\tuple{\ell,f_1},\emptyset}
+\rightarrow\\
+\rho_4=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,call(b,f_2)},\epsilon,\epsilon,\tuple{\ell,f_1},
+\{call(c,f_3)\}}
+\end{array}
+$$
+We now have possible bifurcations due delays in the termination of $c$.
+We could for instance reach one of the following two configurations:
+$$
+\begin{array}{l}
+\rho_5=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,call(c,f_3)},\epsilon,call(b,f_2),\tuple{\ell,f_1},\emptyset}
+\\
+\rho_5'=\tuple{\emptyset,\emptyset,\emptyset,\bot,\epsilon,\epsilon,\tuple{\ell,f_1},
+\{\tuple{\ell,call(b,f_2)},\tuple{\ell,call(c,f_3)}\}}
+\end{array}
+$$
+From the latter we can obtain one of the following configurations:
+$$
+\begin{array}{l}
+\rho_6=\tuple{\emptyset,\emptyset,\emptyset,\tuple{\ell,f_1},\epsilon,
+               \epsilon,\{\tuple{\ell,call(b,f_2)}\cdot \tuple{\ell,call(c,f_3)}\}}
+\\
+\rho_7=\tuple{\emptyset,\emptyset,\emptyset,\bot,\tuple{\ell,call(b,f_2)}\cdot \tuple{\ell,call(c,f_3)},
+               \tuple{\ell,f_1},\emptyset}
+\\
+\rho_8=\tuple{\emptyset,\emptyset,\emptyset,\bot,\tuple{\ell,call(c,f_3)}\cdot \tuple{\ell,call(b,f_2)},
+               \tuple{\ell,f_1},\emptyset}
+\end{array}
+$$
+

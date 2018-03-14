@@ -1,0 +1,38 @@
+\documentclass{llncs}
+\usepackage{hyperref}
+%% Packages: Math
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{multirow}
+\usepackage{latexsym}
+\usepackage{verbatim}
+\usepackage{xcolor}
+\usepackage{color}
+\usepackage{multirow}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{listings}
+\usepackage{proof}
+\usepackage[latin1]{inputenc}
+
+\input{macros}
+\pagestyle{plain}
+\title{An Abstract Machine for Asynchronous Programs with Closures and Priority Queues}
+\author{Davide Ancona \and Giorgio Delzanno  \and Luca Franceschini \and Maurizio Leotta \and Enrico Prampolini \and Marina Ribaudo \and Filippo Ricca}
+\institute{DIBRIS, University  of Genova, Italy}
+\date{}
+\begin{document}
+\maketitle
+\input intro-new
+\input model_compact
+%\input language_compact
+\input properties_new
+\input psl
+\input{conclusions}
+%\input interpreter
+%\rightharpoonup\end{document}
+\bibliographystyle{plain}
+\bibliography{asyncbiblio}
+\end{document}
+\

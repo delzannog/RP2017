@@ -1,0 +1,55 @@
+%
+\section{Property Specification Language}
+\label{sec:psl}
+%
+The formalization of the operational semantics for an abstract machine for even-loop based programs 
+has several possible applications. First of all, it gives a formal meaning to complex computational models underlying widely used systems like Node.js. The informal documentation of operations like nextTick, setImmediate, etc that we found in the dev site \cite{NodeDoc} is ambiguous and difficult to parse. A transition system like the one presented in this paper gives a precise mathematical meaning to each operation in terms of evolution of configurations.
+Based on this, we can use the operational semantics as a formal tool to reason about computations in the abstract machines.
+For this purpose, we introduce an extension of regular expressions in order to handle values from an infinite domain, i.e., represent labels associated to values.
+%
+A finite state automata is a tuple $A=\tuple{Q,\Sigma,\delta,q_0}$ in which 
+$Q$ is a finite set of states, $\delta:Q\times \Sigma \rightarrow Q$ is the transition relation
+and $q_0$ is an initial state. 
+A computation is a (possibly infinite) sequence $q_0 a_0 q_1 a_1 q_2 \ldots$ s.t. 
+$q_{i+1}=\delta(q_i,a_i)$  for $i\geq 0$.
+The observation of a computation $q_0 a_0 q_1 a_1 q_2 \ldots$ is the possibly infinite word 
+$a_0 a_1 a_2 \ldots$ of labels occurring along the computation.
+%
+
+For an alphabet $\Sigma$, let $\widehat{\Sigma}=\{\widehat{a}|a\in\Sigma\}$.
+An extended automata $EA$ is an automata $A=\tuple{Q,\Sigma\cup\widehat{\Sigma},\delta,q_0}$.
+We use $\widehat{x}$ as a sort of variable.
+The effect of $\widehat{x}$ is to associate a value $v$, non deterministically chosen,  
+to $x$ and to instantiate $x$ with $v$ in every successive transition labeled with $x$  until the next $\widehat{x}$ label is encountered and so on.
+If there are no occurrences of $\widehat{a}$ then the label is interpreted as $a$.
+In other words during the unfolding of the transition relation of an extended automata 
+for each label we maintain its current state. The initial state of label $a$ is $a$ itself.
+However everytime we encounter $\widehat{a}$ its state is updated with some value taken from $D$.
+More precisely, the configuration of an extended automata is a tuple
+$\tuple{q,\rho}$ where $\rho:\Sigma\rightarrow D$.
+The initial state is defined as $\tuple{q_0,id_\Sigma}$,  where $id_\Sigma(a)=a$ for each $a\in\Sigma$.
+Given a configuration $\tuple{q,\rho}$, $a\in\Sigma$ and $\delta(q,a)=q'$, 
+we have that $\tuple{q,\rho}\rightarrow^a\tuple{q',\rho}$.
+Given a configuration $\tuple{q,\rho}$, $a\in\Sigma$ and $\delta(q,\widehat{a})=q'$, 
+we have that $\tuple{q,\rho}\rightarrow^v\tuple{q',\rho'}$ where $\rho'(a)=v$ for some $v\in D$
+and $\rho'(b)=\rho(b)$ for $b\neq a,b\in\Sigma$.
+A computation is a sequence $\tuple{q_0,\rho_0}\alpha_0\tuple{q_1,\rho_1}\alpha_1\ldots$
+such that $\tuple{q_i,\rho_i}\rightarrow^\alpha_i\tuple{q_{i+1},\rho_{i+1}}$ for $i\geq 0$.
+The sequence of labels $\alpha_0\alpha_1\ldots$ is called here observation.
+This simple extension of finite automata allows us to represent observations of value non-deterministically generated during a computation and passed from one callback to another. By definition, we consider only a finite number of variables in order to keep the model  as simplest as possible. 
+Finally, we say that a program $P$ conforms to specification given as an extended automata $A$ iff for every computation $c$ of program $P$ in the abstract machine that generates a sequence of labels $\sigma$, there exists a computation in the extended automata with observation $\sigma$.
+
+To validate examples extracted from Node.js code, we have written a meta-interpreter in Prolog that can explore all possible bounded executions  of the proposed model and catch unexpected execution orders with respect to specifications given in a sublanguage of the automata based language proposed in this section. The interpreter \cite{prolog} exploits the search mechanism of the Prolog runtime system in order to analyze sets of executions of a given input program. We remark that, although Node.js are at first sight sequential programs, their computation is often highly non- deterministic due to the heavy use of asynchronous operations and internal and external evants. 
+
+
+
+
+
+
+
+
+
+
+
+
+
